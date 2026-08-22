@@ -84,6 +84,7 @@ const dom = {
     radarGenreList: document.getElementById("radarGenreList"),
     defaultQualitySelect: document.getElementById("defaultQualitySelect"),
     lyricsFontScaleSelect: document.getElementById("lyricsFontScaleSelect"),
+    layoutModeGroup: document.getElementById("layoutModeGroup"),
     logo: document.querySelector(".header h1"),
 };
 
@@ -3056,7 +3057,10 @@ function updatePlayerQualityMenuPosition() {
     })();
 
     let left;
-    if (isMobileView && isPortraitOrientation) {
+    if (!isMobileView) {
+        // 桌面端：菜单水平中心对齐按钮中心，视觉上更稳定
+        left = Math.round(toggleRect.left + (toggleRect.width - menuWidth) / 2);
+    } else if (isPortraitOrientation) {
         left = Math.round(toggleRect.left + (toggleRect.width - menuWidth) / 2);
     } else {
         left = Math.round(toggleRect.right - menuWidth);
@@ -6436,6 +6440,45 @@ function openSettingsModal() {
         const savedScale = parseFloat(safeGetLocalStorage("lyricsFontScale")) || 1;
         dom.lyricsFontScaleSelect.value = String(savedScale);
     }
+    if (dom.layoutModeGroup) {
+        const mode = safeGetLocalStorage("layoutMode") || "default";
+        dom.layoutModeGroup.querySelectorAll(".layout-option").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.layout === mode);
+        });
+    }
+}
+
+const LAYOUT_MODES = ["default", "cover-lyrics", "cover-only", "lyrics-only"];
+
+function applyLayoutMode(mode) {
+    if (!LAYOUT_MODES.includes(mode)) {
+        mode = "default";
+    }
+    state.layoutMode = mode;
+    const container = document.querySelector(".container");
+    if (container) {
+        if (mode === "default") {
+            delete container.dataset.layout;
+        } else {
+            container.dataset.layout = mode;
+        }
+    }
+    if (dom.layoutModeGroup) {
+        dom.layoutModeGroup.querySelectorAll(".layout-option").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.layout === mode);
+        });
+    }
+}
+
+function bindLayoutModeControls() {
+    if (!dom.layoutModeGroup) return;
+    dom.layoutModeGroup.addEventListener("click", (event) => {
+        const btn = event.target.closest(".layout-option");
+        if (!btn) return;
+        const mode = btn.dataset.layout;
+        applyLayoutMode(mode);
+        safeSetLocalStorage("layoutMode", mode, { skipRemote: true });
+    });
 }
 
 function closeSettingsModal() {
@@ -6506,6 +6549,9 @@ async function loadSettings() {
     if (!Number.isNaN(savedScale) && savedScale > 0) {
         document.documentElement.style.setProperty("--lyrics-font-scale", String(savedScale));
     }
+    // 应用已保存的布局模式
+    applyLayoutMode(safeGetLocalStorage("layoutMode") || "default");
+    bindLayoutModeControls();
     // 注意：云端加载已在 bootstrapPersistentStorage 中统一处理
 }
 
