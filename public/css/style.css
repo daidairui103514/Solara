@@ -1,9 +1,13 @@
 :root {
     --font-main: 'Noto Sans SC', 'Segoe UI', Arial, sans-serif;
-    --bg-gradient: linear-gradient(140deg, #e0f5e9 0%, #c6f0e0 35%, #a3e4d7 100%);
+    --bg-gradient:
+        radial-gradient(1100px 750px at 12% 18%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 62%),
+        radial-gradient(950px 650px at 88% 82%, rgba(26, 188, 156, 0.22) 0%, rgba(26, 188, 156, 0) 64%),
+        radial-gradient(700px 500px at 70% 8%, rgba(46, 204, 113, 0.14) 0%, rgba(46, 204, 113, 0) 60%),
+        linear-gradient(140deg, #eaf7f1 0%, #d4efe3 42%, #b6e7d8 100%);
     --bg-gradient-next: var(--bg-gradient);
     --container-bg: rgba(255, 255, 255, 0.6);
-    --container-shadow: rgba(0, 0, 0, 0.1);
+    --container-shadow: rgba(13, 84, 76, 0.22);
     --backdrop-blur: 12px;
     --text-color: #2c3e50;
     --text-secondary-color: #7f8c8d;
@@ -25,7 +29,10 @@
 }
 
 .dark-mode {
-    --bg-gradient: linear-gradient(135deg, #0b1d1b 0%, #0f2f2c 45%, #123c36 100%);
+    --bg-gradient:
+        radial-gradient(1000px 700px at 18% 12%, rgba(38, 166, 154, 0.18) 0%, rgba(38, 166, 154, 0) 60%),
+        radial-gradient(900px 650px at 82% 88%, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 70%),
+        linear-gradient(135deg, #0b1d1b 0%, #0f2f2c 45%, #123c36 100%);
     --container-bg: rgba(30, 30, 30, 0.6);
     --container-shadow: rgba(0, 0, 0, 0.3);
     --text-color: #ecf0f1;
@@ -116,7 +123,9 @@ body.background-transitioning .background-stage__layer--transition {
     background: var(--container-bg);
     border-radius: 24px;
     padding: 30px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    box-shadow:
+        0 24px 70px -12px var(--container-shadow),
+        0 2px 8px rgba(13, 84, 76, 0.06);
     border: 1px solid var(--border-color);
     aspect-ratio: 16/9;
     height: 80vh;
@@ -154,15 +163,9 @@ body.background-transitioning .background-stage__layer--transition {
     font-size: 2.2em; 
     font-weight: 700; 
     color: var(--primary-color); 
-    letter-spacing: 1px;
+    letter-spacing: -0.02em;
     user-select: none;
     cursor: default;
-}
-.header .warning { 
-    color: var(--text-secondary-color); 
-    font-size: 0.9em; 
-    margin-top: 10px; 
-    font-style: italic; 
 }
 
 /* 设置按钮齿轮动画及大小 */
@@ -204,7 +207,7 @@ body.background-transitioning .background-stage__layer--transition {
     background: var(--component-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 40px rgba(13, 84, 76, 0.22);
     border: 2px solid var(--primary-color);
 }
 
@@ -2413,4 +2416,35 @@ input[type="range"]:active::-moz-range-thumb {
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+/* ===== 界面质感优化（taste redesign） ===== */
+
+/* 时间与数字使用等宽数字，避免播放进度跳动 */
+#currentTimeDisplay,
+#durationDisplay {
+    font-variant-numeric: tabular-nums;
+}
+
+/* 全局可按压元素的物理反馈 */
+.search-btn:active,
+.controls button:active,
+.theme-toggle-button:active,
+.import-dropdown-btn:active {
+    transform: scale(0.96);
+    transition-duration: 80ms;
+}
+
+/* 键盘导航可见焦点环（可达性） */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* 播放列表与搜索结果滚动更顺滑 */
+.playlist-panel,
+.search-results {
+    scroll-behavior: smooth;
 }
