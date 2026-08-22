@@ -2,7 +2,7 @@ import { onRequest as proxyHandler } from "./routes/proxy";
 import { onRequest as paletteHandler } from "./routes/palette";
 import { onRequestPost as loginHandler } from "./routes/login";
 import { onRequest as storageHandler } from "./routes/storage";
-import { timingSafeEqual } from "./lib/security";
+import { timingSafeEqual, passwordToken } from "./lib/security";
 
 export interface Env {
   PASSWORD?: string;
@@ -77,7 +77,7 @@ async function isAuthenticated(request: Request, password: string): Promise<bool
   if (!authCookie) {
     return false;
   }
-  return timingSafeEqual(authCookie, btoa(password));
+  return timingSafeEqual(authCookie, await passwordToken(password));
 }
 
 /**

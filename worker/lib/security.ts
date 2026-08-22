@@ -16,3 +16,16 @@ export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   }
   return diff === 0;
 }
+
+/**
+ * 生成用于 Cookie 的口令令牌：SHA-256(口令) 的 base64。
+ * Cookie 中只存摘要而非 base64(口令)，泄露后无法反推出原口令。
+ * 注意：修改此算法会使已登录用户失效一次，需重新登录。
+ */
+export async function passwordToken(password: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(password)
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(digest)));
+}
