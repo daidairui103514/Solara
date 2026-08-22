@@ -2,5 +2,8 @@
 data/
 .dev.vars
 
-# Cloudflare Wrangler local state (fallback)
+# Cloudflare Wrangler local state
 .wrangler/
+
+# Node
+node_modules/

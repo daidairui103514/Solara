@@ -1,0 +1,9 @@
+# Local dev secrets/config (wrangler dev 自动读取)
+# 复制本文件为 .dev.vars 并按需修改：
+#   cp .dev.vars.example .dev.vars
+
+# 访问口令（不设置则无需登录）
+PASSWORD=your_secure_password_here
+
+# 界面语言：CHN / ENG
+LANGUAGE=CHN

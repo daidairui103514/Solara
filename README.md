@@ -33,7 +33,7 @@
 支持多种部署方式，您可以根据自己的服务器环境选择最合适的一种：
 
 - [🐳 Docker 一键部署 (适合私有服务器)](#-docker-一键部署-适合私有服务器)
-- [✅ Cloudflare Pages 部署 (适合免服务器托管)](#-cloudflare-pages-部署-适合免服务器托管)
+- [✅ Cloudflare Workers 部署 (适合免服务器托管)](#-cloudflare-workers-部署-适合免服务器托管)
 
 ---
 
@@ -67,47 +67,78 @@ docker compose up -d
 
 ---
 
-### ✅ Cloudflare Pages 部署 (适合免服务器托管)
-如果您没有自己的服务器，可以直接使用 Cloudflare 免费部署：
-1. Fork 或克隆本仓库到您自己的 GitHub 账号下。
-2. 登录 Cloudflare 控制台，按照 Cloudflare Pages 文档创建站点，并将本仓库作为构建来源或直接上传静态资源。
-3. 部署完成后，通过 Cloudflare Pages 分配的域名访问站点即可。
+### ✅ Cloudflare Workers 部署 (适合免服务器托管)
+
+本项目已迁移至 Cloudflare Workers（静态资源 + Worker 一体部署），有两种方式：
+
+#### 方式一：本地命令行部署
+
+1. Fork 或克隆本仓库到您自己的 GitHub 账号下，然后克隆到本地。
+2. 安装依赖并登录 Cloudflare：
+   ```bash
+   npm install
+   npx wrangler login
+   ```
+3. 创建 D1 数据库，并把返回的 `database_id` 填入 `wrangler.jsonc`：
+   ```bash
+   npx wrangler d1 create solara-db
+   ```
+4. 初始化数据表（可选，Worker 也会自动建表）：
+   ```bash
+   npx wrangler d1 execute solara-db --remote --file=./schema.sql
+   ```
+5. （可选）设置访问口令与界面语言：
+   ```bash
+   npx wrangler secret put PASSWORD     # 访问口令，留空表示不启用
+   npx wrangler secret put LANGUAGE     # 输入 ENG 切换英文界面
+   ```
+6. 一键部署：
+   ```bash
+   npm run deploy
+   ```
+7. 部署完成后，通过 Cloudflare 分配的 `*.workers.dev` 域名访问站点即可。
+
+> 💡 本地开发调试：复制 `.dev.vars.example` 为 `.dev.vars` 并按需修改，然后执行 `npm run dev`。
+
+#### 方式二：GitHub Actions 自动部署
+
+1. 在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中添加两个 Secret：
+   - `CLOUDFLARE_API_TOKEN`：在 Cloudflare Dashboard 创建，权限需包含 **Workers Scripts: Edit**、**D1: Edit** 与 **Account Settings: Read**。
+   - `CLOUDFLARE_ACCOUNT_ID`：你的 Cloudflare 账户 ID。
+2. Push 到 `main` 分支即可自动部署。
 
 ## ⚙️ 配置提示
-- API 基地址定义在 functions/proxy.ts 中的第1行，可替换为自建接口域名。
+- API 基地址定义在 worker/routes/proxy.ts 中的第1行，可替换为自建接口域名。
 - 默认主题、播放模式等偏好可在 `state` 初始化逻辑中按需调整。
 
 ### ☁️ Cloudflare D1 绑定与建表
 1. 在 Cloudflare Dashboard 的 **Workers & Pages → D1 → Create** 中新建数据库，建议命名为 `solara-db`（名称可自定）。
-2. 打开 Pages 项目设置，依次进入 **Settings → Functions → Bindings → Add binding → D1 Database**：
-   - **Binding name** 填写 `DB`（必须与 `functions/api/storage.ts` 中的环境变量一致）。
-   - **D1 Database** 选择上一步创建的数据库并保存。
-3. 在数据库详情页切换到 **Query** 标签页，执行下方建表语句初始化两个独立的键值存储表（播放数据与收藏数据分离）：
-   ```sql
-   CREATE TABLE IF NOT EXISTS playback_store (
-     key TEXT PRIMARY KEY,
-     value TEXT,
-     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-   );
-
-   CREATE TABLE IF NOT EXISTS favorites_store (
-     key TEXT PRIMARY KEY,
-     value TEXT,
-     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-   );
+2. 将创建后返回的 `database_id` 填入仓库根目录的 `wrangler.jsonc`：
+   ```jsonc
+   "d1_databases": [
+     {
+       "binding": "DB",
+       "database_name": "solara-db",
+       "database_id": "<你的数据库ID>"
+     }
+   ]
    ```
-4. 重新部署或预览站点。前端会优先检测 D1 绑定：播放状态、播放列表等写入 `playback_store`，收藏相关写入 `favorites_store`；未绑定时自动退回浏览器 localStorage。
+3. 初始化建表（也可以跳过，代码会在首次访问时自动建表）：
+   ```bash
+   npx wrangler d1 execute solara-db --remote --file=./schema.sql
+   ```
+4. 重新部署站点。前端会优先检测 D1 绑定：播放状态、播放列表等写入 `playback_store`，收藏相关写入 `favorites_store`；未绑定时自动退回浏览器 localStorage。
 
 ## 🧭 探索雷达
 - 探索雷达会在「流行、摇滚、古典音乐、民谣、电子、爵士、说唱、乡村、蓝调、R&B、金属、嘻哈、轻音乐」等分类中随机挑选关键词，自动为播放列表补充新歌。
 - 您可以**双击Logo** 或**点击侧边栏设置按钮**进入设置界面，自由勾选想要开启或排除的音乐分类，配置将实时保存并生效。
 
 ## 🔐 访问控制设置
-- **Cloudflare Pages：** 在项目的 **Settings → Functions → Environment variables** 中新增名为 `PASSWORD` 的环境变量，值为希望设置的访问口令。
-- 部署完成后，未登录的访问者会被自动重定向到 `/login` 页面并需输入该口令；若想关闭访问口令，删除该环境变量并重新部署即可。
+- **Cloudflare Workers：** 执行 `npx wrangler secret put PASSWORD` 设置访问口令（本地调试则在 `.dev.vars` 中配置）。
+- 部署完成后，未登录的访问者会被自动重定向到 `/login` 页面并需输入该口令；若想关闭访问口令，删除该 Secret（`npx wrangler secret delete PASSWORD`）并重新部署即可。
 
 ## 🌐 多语言设置 (English Version)
-- **Cloudflare Pages：** 在项目的 **Settings → Functions → Environment variables** 中新增名为 `LANGUAGE` 的环境变量，值为 `ENG`。
+- **Cloudflare Workers：** 执行 `npx wrangler secret put LANGUAGE` 并输入 `ENG`。
 - 部署完成后，站点将会自动切换为全英文界面。若想恢复中文界面，删除该环境变量或修改为其他值后重新部署即可。
 
 ## 🎵 使用流程
@@ -144,25 +175,34 @@ docker compose up -d
 
 ## 🗂️ 项目结构
 ```
-Music-Player/
-├── css/
-│   ├── desktop.css   # 桌面端布局与组件样式
-│   ├── mobile.css    # 移动端适配样式
-│   └── style.css     # 公共主题与变量定义
-├── functions/
-│   ├── _middleware.ts # Cloudflare Pages Functions 中间件
-│   ├── api/           # 各曲库代理函数入口
-│   ├── lib/           # 请求封装与工具模块
-│   ├── palette.ts     # 封面取色算法
-│   └── proxy.ts       # 音频直链代理
-├── js/
-│   ├── index.js       # 播放器核心逻辑、状态管理与探索雷达分类
-│   └── mobile.js      # 移动端交互与事件处理
-├── favicon.png
-├── favicon.svg
-├── index.html         # 主界面结构、资源引入与配置项
-├── login.html         # 访问控制登录页
-└── README.md          # 项目说明
+Solara/
+├── public/               # 静态资源（Workers Static Assets）
+│   ├── css/
+│   │   ├── desktop.css   # 桌面端布局与组件样式
+│   │   ├── mobile.css    # 移动端适配样式
+│   │   └── style.css     # 公共主题与变量定义
+│   ├── js/
+│   │   ├── i18n.js       # 多语言支持
+│   │   ├── index.js      # 播放器核心逻辑、状态管理与探索雷达分类
+│   │   └── mobile.js     # 移动端交互与事件处理
+│   ├── favicon.png
+│   ├── favicon.svg
+│   ├── index.html        # 主界面结构、资源引入与配置项
+│   └── login.html        # 访问控制登录页
+├── worker/               # Cloudflare Worker 后端
+│   ├── index.ts          # 入口：路由分发、鉴权中间件、i18n 注入
+│   ├── lib/
+│   │   ├── security.ts   # 常数时间安全比较工具
+│   │   └── vendor/       # 第三方依赖（jpeg-decoder）
+│   └── routes/
+│       ├── login.ts      # 登录接口（POST /api/login）
+│       ├── palette.ts    # 封面取色算法（GET /palette）
+│       ├── proxy.ts      # 音频直链与曲库 API 代理（GET /proxy）
+│       └── storage.ts    # D1 键值存储（/api/storage）
+├── wrangler.jsonc        # Workers 部署配置
+├── schema.sql            # D1 建表脚本
+├── Dockerfile            # Docker 自托管镜像
+└── README.md             # 项目说明
 ```
 
 ## 📄 许可证

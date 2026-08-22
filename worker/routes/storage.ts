@@ -48,19 +48,31 @@ function getTableForKey(key: string): TableName {
   return TABLES.playback;
 }
 
+// 每个 isolate 仅执行一次建表检查，避免每次请求都产生额外的 D1 往返
+let tablesReadyPromise: Promise<void> | null = null;
+
 async function ensureTables(env: Env): Promise<void> {
   if (!hasD1(env)) {
     return;
   }
-  const createStatements = [
-    env.DB.prepare(
-      "CREATE TABLE IF NOT EXISTS playback_store (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)"
-    ),
-    env.DB.prepare(
-      "CREATE TABLE IF NOT EXISTS favorites_store (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)"
-    ),
-  ];
-  await env.DB.batch(createStatements);
+  if (!tablesReadyPromise) {
+    tablesReadyPromise = (async () => {
+      const createStatements = [
+        env.DB!.prepare(
+          "CREATE TABLE IF NOT EXISTS playback_store (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+        ),
+        env.DB!.prepare(
+          "CREATE TABLE IF NOT EXISTS favorites_store (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+        ),
+      ];
+      await env.DB!.batch(createStatements);
+    })();
+    tablesReadyPromise.catch(() => {
+      // 失败时重置，允许下一次请求重试
+      tablesReadyPromise = null;
+    });
+  }
+  await tablesReadyPromise;
 }
 
 async function handleGet(request: Request, env: Env): Promise<Response> {

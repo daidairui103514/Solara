@@ -8,10 +8,13 @@ else
     echo "No PASSWORD environment variable provided, skipping .dev.vars creation."
 fi
 
-# 启动 wrangler
+if [ ! -z "$LANGUAGE" ]; then
+    echo "LANGUAGE=\"$LANGUAGE\"" >> /app/.dev.vars
+fi
+
+# 启动 Cloudflare Workers 本地开发服务器（读取 wrangler.jsonc 配置）
 # --ip 0.0.0.0 允许外部访问
 # --port 8787 绑定到 8787 端口
-# --d1 DB 绑定名为 DB 的 D1 数据库（必须与代码中保持一致）
-# --persist-to=/app/data 将数据库文件等持久化保存到 /app/data 目录中，以便做 volume 映射
-echo "Starting Cloudflare Pages local development server via Wrangler..."
-exec npx wrangler pages dev . --ip 0.0.0.0 --port 8787 --d1 DB --persist-to=/app/data
+# --persist-to=/app/data 将 D1 数据库文件等持久化保存，以便做 volume 映射
+echo "Starting Solara via Wrangler (Cloudflare Workers local dev server)..."
+exec npx wrangler dev --ip 0.0.0.0 --port 8787 --persist-to=/app/data

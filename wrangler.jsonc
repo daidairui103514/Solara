@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "solara",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "none",
+    "run_worker_first": [
+      "/",
+      "/index.html",
+      "/login*",
+      "/api/*",
+      "/proxy*",
+      "/palette*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "solara-db",
+      "database_id": "请替换为你的 D1 数据库 ID（npx wrangler d1 create solara-db 后获得）"
+    }
+  ],
+  "vars": {
+    "LANGUAGE": "CHN"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

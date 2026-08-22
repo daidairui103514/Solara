@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "../lib/security";
+
 const MAX_AGE_SECONDS = 48 * 60 * 60;
 
 export async function onRequestPost(context: any) {
@@ -15,7 +17,7 @@ export async function onRequestPost(context: any) {
     });
   }
 
-  if (providedPassword === passwordEnv) {
+  if (providedPassword && (await timingSafeEqual(providedPassword, passwordEnv))) {
     const cookieSegments = [
       `auth=${btoa(passwordEnv)}`,
       `Max-Age=${MAX_AGE_SECONDS}`,

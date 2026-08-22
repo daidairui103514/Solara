@@ -1,4 +1,4 @@
-import decodeJpeg from "./lib/vendor/jpeg-decoder.js";
+import decodeJpeg from "../lib/vendor/jpeg-decoder.js";
 
 const MAX_DIMENSION = 96;
 const TARGET_SAMPLE_COUNT = 2400;
