@@ -523,6 +523,26 @@
                     <!-- 风格复选框将通过 JS 动态生成 -->
                 </div>
             </section>
+            <section class="settings-section">
+                <h3>播放偏好</h3>
+                <div class="settings-field">
+                    <label for="defaultQualitySelect">默认音质</label>
+                    <select id="defaultQualitySelect" class="settings-select">
+                        <option value="128">标准音质 (128k)</option>
+                        <option value="192">高品音质 (192k)</option>
+                        <option value="320">极高音质 (320k)</option>
+                        <option value="999">无损音质 (FLAC)</option>
+                    </select>
+                </div>
+                <div class="settings-field">
+                    <label for="lyricsFontScaleSelect">歌词字号</label>
+                    <select id="lyricsFontScaleSelect" class="settings-select">
+                        <option value="0.9">小</option>
+                        <option value="1">标准</option>
+                        <option value="1.15">大</option>
+                    </select>
+                </div>
+            </section>
         </div>
         <div class="modal-footer">
             <button id="saveSettingsBtn" class="save-settings-btn">保存设置</button>

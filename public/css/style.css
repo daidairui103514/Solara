@@ -118,18 +118,16 @@ body.background-transitioning .background-stage__layer--transition {
 
 /* 16:9 容器布局 */
 .container {
-    width: min(1200px, 100%);
+    width: min(1500px, 100%);
     margin: 0 auto;
     background: var(--container-bg);
     border-radius: 24px;
-    padding: 30px;
+    padding: 28px 32px;
     box-shadow:
         0 24px 70px -12px var(--container-shadow),
         0 2px 8px rgba(13, 84, 76, 0.06);
     border: 1px solid var(--border-color);
-    aspect-ratio: 16/9;
-    height: 80vh;
-    max-height: 700px;
+    height: calc(100dvh - 36px);
     display: grid;
     grid-template-areas:
         "header header header"
@@ -137,7 +135,7 @@ body.background-transitioning .background-stage__layer--transition {
         "cover playlist lyrics"
         "controls controls controls";
     grid-template-rows: auto auto 1fr 80px;
-    grid-template-columns: 300px 1fr 1fr;
+    grid-template-columns: minmax(280px, 330px) 1.15fr 0.85fr;
     gap: 20px;
     transition: background 0.5s, box-shadow 0.5s;
     overflow: visible;
@@ -1522,7 +1520,7 @@ html.mobile-view .favorites .favorite-item-action--remove {
 .lyrics {
     grid-area: lyrics;
     text-align: center;
-    font-size: 1em;
+    font-size: calc(1em * var(--lyrics-font-scale, 1));
     line-height: 2;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -1564,6 +1562,9 @@ html.mobile-view .favorites .favorite-item-action--remove {
     word-wrap: break-word;
     overflow-wrap: break-word;
     max-width: 100%;
+    opacity: 0.45;
+    transform: scale(0.97);
+    transition: opacity 0.35s ease, transform 0.35s ease, color 0.35s ease;
 }
 
 /* 当歌词容器只有默认文本时的样式 */
@@ -1589,9 +1590,9 @@ html[lang="en"] .lyrics.empty[data-placeholder="default"] .lyrics-scroll::before
 .lyrics .current { 
     color: var(--lyrics-highlight-text); 
     font-weight: 700; 
-    background-color: var(--lyrics-highlight-bg); 
-    transform: scale(1.05); 
-    box-shadow: 0 4px 15px var(--lyrics-highlight-shadow); 
+    opacity: 1;
+    transform: scale(calc(1.08 * var(--lyrics-font-scale, 1)));
+    text-shadow: 0 2px 22px var(--lyrics-highlight-shadow);
 }
 
 /* 控制区域 */
@@ -1822,15 +1823,17 @@ input[type="range"]:active::-moz-range-thumb {
     align-items: center;
     justify-content: center;
     gap: 0;
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--primary-color);
     background: var(--component-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: var(--text-color);
     font-size: 0.9em;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
     width: auto;
     height: auto;
     box-shadow: none;
@@ -2494,4 +2497,89 @@ body.dark-mode .playlist-items .playlist-item.current {
     * {
         transition-duration: 0.01ms !important;
     }
+}
+
+/* ===== 播放列表：曲目序号 ===== */
+.playlist-items {
+    counter-reset: track-no;
+}
+.playlist-items .playlist-item::before {
+    counter-increment: track-no;
+    content: counter(track-no, decimal-leading-zero);
+    display: inline-block;
+    width: 26px;
+    margin-right: 8px;
+    color: var(--text-secondary-color);
+    opacity: 0.65;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+}
+.playlist-items .playlist-item.current::before {
+    color: var(--primary-color);
+    opacity: 1;
+}
+
+/* ===== 进度条：悬停加粗、拖块放大 ===== */
+#progressBar {
+    transition: height 0.2s ease;
+}
+input[type="range"]::-webkit-slider-thumb {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+#progressBar:hover::-webkit-slider-thumb,
+#progressBar:active::-webkit-slider-thumb {
+    transform: scale(1.35);
+    box-shadow: 0 0 0 6px rgba(26, 188, 156, 0.15);
+}
+
+/* ===== 设置面板：播放偏好控件 ===== */
+.settings-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+}
+.settings-field + .settings-field {
+    border-top: 1px dashed var(--border-color);
+}
+.settings-field label {
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--text-color);
+}
+.settings-select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 9px 38px 9px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background-color: var(--component-bg);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237f8c8d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.92em;
+    cursor: pointer;
+    min-width: 180px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.settings-select:hover {
+    border-color: var(--primary-color);
+}
+.settings-select:focus-visible {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(26, 188, 156, 0.18);
+}
+
+/* ===== 搜索结果：标题与歌手信息层级 ===== */
+.search-result-title {
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+.search-result-artist {
+    font-size: 0.85em;
+    opacity: 0.75;
 }

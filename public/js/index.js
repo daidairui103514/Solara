@@ -82,6 +82,8 @@ const dom = {
     saveSettingsBtn: document.getElementById("saveSettingsBtn"),
     openSettingsBtn: document.getElementById("openSettingsBtn"),
     radarGenreList: document.getElementById("radarGenreList"),
+    defaultQualitySelect: document.getElementById("defaultQualitySelect"),
+    lyricsFontScaleSelect: document.getElementById("lyricsFontScaleSelect"),
     logo: document.querySelector(".header h1"),
 };
 
@@ -6427,6 +6429,13 @@ function openSettingsModal() {
         dom.settingsModal.classList.add("show");
         dom.settingsModal.setAttribute("aria-hidden", "false");
     }
+    if (dom.defaultQualitySelect) {
+        dom.defaultQualitySelect.value = normalizeQuality(state.playbackQuality);
+    }
+    if (dom.lyricsFontScaleSelect) {
+        const savedScale = parseFloat(safeGetLocalStorage("lyricsFontScale")) || 1;
+        dom.lyricsFontScaleSelect.value = String(savedScale);
+    }
 }
 
 function closeSettingsModal() {
@@ -6458,6 +6467,25 @@ async function saveSettings() {
         });
     }
 
+    // 播放偏好：默认音质
+    if (dom.defaultQualitySelect) {
+        const quality = normalizeQuality(dom.defaultQualitySelect.value);
+        if (quality !== state.playbackQuality) {
+            state.playbackQuality = quality;
+            safeSetLocalStorage("playbackQuality", state.playbackQuality, { skipRemote: true });
+            updateQualityLabel();
+        }
+    }
+
+    // 播放偏好：歌词字号
+    if (dom.lyricsFontScaleSelect) {
+        const scale = parseFloat(dom.lyricsFontScaleSelect.value);
+        if (!Number.isNaN(scale)) {
+            document.documentElement.style.setProperty("--lyrics-font-scale", String(scale));
+            safeSetLocalStorage("lyricsFontScale", String(scale), { skipRemote: true });
+        }
+    }
+
     showNotification("设置已保存", "success");
     closeSettingsModal();
 }
@@ -6472,6 +6500,11 @@ async function loadSettings() {
         } catch (e) {
             console.error("解析本地设置失败:", e);
         }
+    }
+    // 应用已保存的歌词字号
+    const savedScale = parseFloat(safeGetLocalStorage("lyricsFontScale"));
+    if (!Number.isNaN(savedScale) && savedScale > 0) {
+        document.documentElement.style.setProperty("--lyrics-font-scale", String(savedScale));
     }
     // 注意：云端加载已在 bootstrapPersistentStorage 中统一处理
 }
