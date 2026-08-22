@@ -69,9 +69,24 @@ docker compose up -d
 
 ### ✅ Cloudflare Workers 部署 (适合免服务器托管)
 
-本项目已迁移至 Cloudflare Workers（静态资源 + Worker 一体部署），有两种方式：
+本项目已迁移至 Cloudflare Workers（静态资源 + Worker 一体部署），有三种方式：
 
-#### 方式一：本地命令行部署
+#### 方式一：网页控制台部署（推荐，全程无需命令行）
+
+1. Fork 本仓库到您自己的 GitHub 账号下。
+2. 在 Cloudflare Dashboard 的 **存储和数据库 → D1 SQL 数据库** 中点 **创建**，新建数据库（建议命名 `solara-db`）。
+3. 在 Cloudflare Dashboard 的 **计算 (Workers 和 Pages)** 中选择 **创建 → 导入仓库 (Import a repository)**，连接 GitHub 并选中您 Fork 的仓库。
+4. 构建设置保持默认（Cloudflare 会自动识别 `wrangler.jsonc`），点击 **创建并部署**。
+5. 部署完成后进入该 Worker 的 **设置 (Settings) → 绑定 (Bindings) → 添加绑定**：
+   - 类型选 **D1 Database**
+   - 变量名称填 `DB`（必须一致）
+   - 选择第一步创建的数据库并保存。
+6. （可选）在同一设置页的 **变量和机密 (Variables and Secrets)** 中添加名为 `PASSWORD` 的 Secret 作为访问口令。
+7. 通过 Cloudflare 分配的 `*.workers.dev` 域名即可访问站点。此后每次 Push 代码会自动重新部署。
+
+> 💡 D1 数据表无需手动创建，应用首次访问时会自动建表。
+
+#### 方式二：本地命令行部署
 
 1. Fork 或克隆本仓库到您自己的 GitHub 账号下，然后克隆到本地。
 2. 安装依赖并登录 Cloudflare：
@@ -79,28 +94,29 @@ docker compose up -d
    npm install
    npx wrangler login
    ```
-3. 创建 D1 数据库，并把返回的 `database_id` 填入 `wrangler.jsonc`：
+3. 创建 D1 数据库：
    ```bash
    npx wrangler d1 create solara-db
    ```
-4. 初始化数据表（可选，Worker 也会自动建表）：
+4. （可选）初始化数据表（Worker 也会在首次访问时自动建表）：
    ```bash
    npx wrangler d1 execute solara-db --remote --file=./schema.sql
    ```
-5. （可选）设置访问口令与界面语言：
+5. 部署后在控制台绑定数据库：进入 Worker 的 **Settings → Bindings → Add binding → D1 Database**，变量名填 `DB` 并选中上一步创建的数据库。
+6. （可选）设置访问口令与界面语言：
    ```bash
    npx wrangler secret put PASSWORD     # 访问口令，留空表示不启用
    npx wrangler secret put LANGUAGE     # 输入 ENG 切换英文界面
    ```
-6. 一键部署：
+7. 一键部署：
    ```bash
    npm run deploy
    ```
-7. 部署完成后，通过 Cloudflare 分配的 `*.workers.dev` 域名访问站点即可。
+8. 部署完成后，通过 Cloudflare 分配的 `*.workers.dev` 域名访问站点即可。
 
 > 💡 本地开发调试：复制 `.dev.vars.example` 为 `.dev.vars` 并按需修改，然后执行 `npm run dev`。
 
-#### 方式二：GitHub Actions 自动部署
+#### 方式三：GitHub Actions 自动部署
 
 1. 在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中添加两个 Secret：
    - `CLOUDFLARE_API_TOKEN`：在 Cloudflare Dashboard 创建，权限需包含 **Workers Scripts: Edit**、**D1: Edit** 与 **Account Settings: Read**。
@@ -112,34 +128,27 @@ docker compose up -d
 - 默认主题、播放模式等偏好可在 `state` 初始化逻辑中按需调整。
 
 ### ☁️ Cloudflare D1 绑定与建表
-1. 在 Cloudflare Dashboard 的 **Workers & Pages → D1 → Create** 中新建数据库，建议命名为 `solara-db`（名称可自定）。
-2. 将创建后返回的 `database_id` 填入仓库根目录的 `wrangler.jsonc`：
-   ```jsonc
-   "d1_databases": [
-     {
-       "binding": "DB",
-       "database_name": "solara-db",
-       "database_id": "<你的数据库ID>"
-     }
-   ]
-   ```
-3. 初始化建表（也可以跳过，代码会在首次访问时自动建表）：
-   ```bash
-   npx wrangler d1 execute solara-db --remote --file=./schema.sql
-   ```
-4. 重新部署站点。前端会优先检测 D1 绑定：播放状态、播放列表等写入 `playback_store`，收藏相关写入 `favorites_store`；未绑定时自动退回浏览器 localStorage。
+1. 在 Cloudflare Dashboard 的 **存储和数据库 → D1** 中新建数据库，建议命名为 `solara-db`（名称可自定）。
+2. 进入您的 Worker 的 **设置 (Settings) → 绑定 (Bindings) → 添加绑定 (Add binding)**：
+   - 类型选择 **D1 Database**
+   - **变量名称** 填写 `DB`（必须与 `worker/routes/storage.ts` 中的环境变量一致）
+   - **D1 Database** 选择上一步创建的数据库并保存。
+3. 数据表无需手动初始化，代码会在首次访问时自动建表；也可以通过命令行执行 `schema.sql` 预先创建。
+4. 前端会优先检测 D1 绑定：播放状态、播放列表等写入 `playback_store`，收藏相关写入 `favorites_store`；未绑定时自动退回浏览器 localStorage。
 
 ## 🧭 探索雷达
 - 探索雷达会在「流行、摇滚、古典音乐、民谣、电子、爵士、说唱、乡村、蓝调、R&B、金属、嘻哈、轻音乐」等分类中随机挑选关键词，自动为播放列表补充新歌。
 - 您可以**双击Logo** 或**点击侧边栏设置按钮**进入设置界面，自由勾选想要开启或排除的音乐分类，配置将实时保存并生效。
 
 ## 🔐 访问控制设置
-- **Cloudflare Workers：** 执行 `npx wrangler secret put PASSWORD` 设置访问口令（本地调试则在 `.dev.vars` 中配置）。
-- 部署完成后，未登录的访问者会被自动重定向到 `/login` 页面并需输入该口令；若想关闭访问口令，删除该 Secret（`npx wrangler secret delete PASSWORD`）并重新部署即可。
+- **网页控制台：** 进入 Worker 的 **设置 → 变量和机密**，添加名为 `PASSWORD` 的 Secret，值为希望设置的访问口令。
+- **命令行：** 执行 `npx wrangler secret put PASSWORD`（本地调试则在 `.dev.vars` 中配置）。
+- 部署完成后，未登录的访问者会被自动重定向到 `/login` 页面并需输入该口令；若想关闭访问口令，删除该 Secret 即可。
 
 ## 🌐 多语言设置 (English Version)
-- **Cloudflare Workers：** 执行 `npx wrangler secret put LANGUAGE` 并输入 `ENG`。
-- 部署完成后，站点将会自动切换为全英文界面。若想恢复中文界面，删除该环境变量或修改为其他值后重新部署即可。
+- **网页控制台：** 在 Worker 的 **设置 → 变量和机密** 中添加名为 `LANGUAGE` 的变量（或 Secret），值为 `ENG`。
+- **命令行：** 执行 `npx wrangler secret put LANGUAGE` 并输入 `ENG`。
+- 部署完成后，站点将会自动切换为全英文界面。若想恢复中文界面，删除该变量或修改为其他值即可。
 
 ## 🎵 使用流程
 1. 输入关键词并选择想要的曲库后发起搜索。

@@ -17,13 +17,10 @@
       "/palette*"
     ]
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "solara-db",
-      "database_id": "请替换为你的 D1 数据库 ID（npx wrangler d1 create solara-db 后获得）"
-    }
-  ],
+  // D1 数据库不在配置文件中绑定，推荐在 Cloudflare 控制台中操作：
+  // Worker → Settings(设置) → Bindings(绑定) → Add(添加) → D1 Database
+  // 变量名必须填 DB，并选择你创建的数据库（如 solara-db）
+  // 未绑定时应用会自动回退到浏览器 localStorage 存储，功能不受影响
   "vars": {
     "LANGUAGE": "CHN"
   },
