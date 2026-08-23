@@ -1600,13 +1600,16 @@ html.mobile-view .favorites .favorite-item-action--remove {
     word-wrap: break-word;
     overflow-wrap: break-word;
     max-width: 100%;
-    opacity: 0.35;
-    transform: scale(0.95);
-    filter: blur(1px);
-    transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                filter 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                color 0.4s ease;
+    opacity: 0.3;
+    transform: scale(0.94) translateY(10px);
+    filter: blur(1.5px);
+    transition:
+        opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.55s ease,
+        color 0.3s ease,
+        text-shadow 0.55s ease;
+    will-change: opacity, transform, filter;
 }
 
 /* 当歌词容器只有默认文本时的样式 */
@@ -1633,9 +1636,9 @@ html[lang="en"] .lyrics.empty[data-placeholder="default"] .lyrics-scroll::before
     color: var(--lyrics-highlight-text); 
     font-weight: 800; 
     opacity: 1;
-    transform: scale(1.22);
+    transform: scale(1.08) translateY(0);
     filter: blur(0);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     text-shadow:
         0 0 18px var(--lyrics-highlight-shadow),
         0 2px 30px var(--lyrics-highlight-shadow),
@@ -2770,14 +2773,20 @@ body.lyrics-stage .lyrics.empty[data-placeholder="default"] .lyrics-scroll::befo
     content: "歌词将在此处同步显示";
     color: var(--text-secondary-color);
 }
+    body.lyrics-stage .lyrics-content > div {
     filter: blur(2px);
     opacity: 0.3;
     margin-bottom: 18px;
-    transition: opacity 0.5s ease, filter 0.5s ease, transform 0.5s ease;
+    transform: scale(0.96) translateY(14px);
+    transition:
+        opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.6s ease,
+        text-shadow 0.6s ease;
 }
 body.lyrics-stage .lyrics-content > div.current,
 body.lyrics-stage .lyrics .current {
-    transform: scale(1.08);
+    transform: scale(1.06) translateY(0);
     filter: blur(0);
     opacity: 1;
     color: var(--lyrics-highlight-text);
