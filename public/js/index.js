@@ -6656,9 +6656,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function ensureAudioGraph() {
-        if (audioCtx || !dom.audioPlayer) return;
+        if (audioCtx || !dom.audioPlayer) return false;
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return;
+        if (!AudioContextClass) return false;
         try {
             audioCtx = new AudioContextClass();
             const sourceNode = audioCtx.createMediaElementSource(dom.audioPlayer);
@@ -6668,8 +6668,17 @@ document.addEventListener("DOMContentLoaded", () => {
             sourceNode.connect(analyser);
             analyser.connect(audioCtx.destination);
             freqData = new Uint8Array(analyser.frequencyBinCount);
+            return true;
         } catch (e) {
-            console.warn("[VFX] 音频分析器初始化失败:", e);
+            console.warn("[VFX] 音频分析器初始化失败，VFX 降级:", e);
+            if (audioCtx && audioCtx.state !== "closed") {
+                try { audioCtx.close(); } catch (e) {}
+            }
+            audioCtx = null;
+            analyser = null;
+            freqData = null;
+            // 创建失败不影响正常播放
+            return false;
         }
     }
 
@@ -6775,7 +6784,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function startEngine() {
         if (!isEngineAllowed()) return;
-        ensureAudioGraph();
         if (audioCtx && audioCtx.state === "suspended") {
             audioCtx.resume().catch(() => {});
         }
@@ -6814,6 +6822,11 @@ document.addEventListener("DOMContentLoaded", () => {
         bindLyricsStage();
 
         if (dom.audioPlayer) {
+            // 在播放前尽早创建音频分析图（避免接管播放中的音频元素导致无声）
+            if (!ensureAudioGraph()) {
+                // 如果音频元素还没就绪，等 loadedmetadata 再试
+                dom.audioPlayer.addEventListener("loadedmetadata", ensureAudioGraph, { once: true });
+            }
             dom.audioPlayer.addEventListener("play", startEngine);
             dom.audioPlayer.addEventListener("pause", handlePause);
             dom.audioPlayer.addEventListener("ended", handlePause);
