@@ -6593,10 +6593,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let particleCanvas = null;
     let particleCtx = null;
     let particles = [];
-    let audioCtx = null;
-    let analyser = null;
-    let freqData = null;
-    let hasAudio = false;
 
     const reduceMotionQuery = typeof window.matchMedia === "function"
         ? window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -6648,86 +6644,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    /* ---------- 音频分析器（Mineradio dj-analyzer 风格，8 频段） ---------- */
-    function ensureAudioGraph() {
-        if (audioCtx || !dom.audioPlayer) return false;
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return false;
-        try {
-            audioCtx = new AC();
-            if (audioCtx.state === "suspended") {
-                audioCtx.resume().catch(() => {});
-            }
-            const src = audioCtx.createMediaElementSource(dom.audioPlayer);
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 2048;
-            analyser.smoothingTimeConstant = 0.82;
-            src.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            freqData = new Uint8Array(analyser.frequencyBinCount);
-            hasAudio = true;
-            console.log("[VFX] 音频分析器已就绪");
-            return true;
-        } catch (e) {
-            console.warn("[VFX] 音频分析器初始化失败，改用合成能量:", e);
-            if (audioCtx && audioCtx.state !== "closed") {
-                try { audioCtx.close(); } catch (e) {}
-            }
-            audioCtx = null;
-            analyser = null;
-            freqData = null;
-            hasAudio = false;
-            return false;
-        }
-    }
-
-    function getAudioEnergy() {
-        if (!hasAudio || !analyser || !freqData) return null;
-        analyser.getByteFrequencyData(freqData);
-        const nyquist = 22050;
-        const binCount = analyser.frequencyBinCount;
-        const binWidth = nyquist / binCount;
-        const bands = [
-            { name: "subBass",   lo: 20,    hi: 60   },
-            { name: "bass",      lo: 60,    hi: 250  },
-            { name: "lowMid",    lo: 250,   hi: 500  },
-            { name: "mid",       lo: 500,   hi: 2000 },
-            { name: "highMid",   lo: 2000,  hi: 4000 },
-            { name: "presence",  lo: 4000,  hi: 6000 },
-            { name: "brilliance",lo: 6000,  hi: 16000},
-            { name: "air",       lo: 16000, hi: 22050}
-        ];
-        const result = {};
-        let total = 0;
-        for (const band of bands) {
-            let sum = 0, count = 0;
-            for (let i = 0; i < binCount; i++) {
-                const freq = (i + 0.5) * binWidth;
-                if (freq >= band.lo && freq < band.hi) {
-                    sum += freqData[i];
-                    count++;
-                }
-            }
-            const avg = count > 0 ? sum / count / 255 : 0;
-            result[band.name] = Math.min(1, avg);
-            total += avg;
-        }
-        result.energy = Math.min(1, total / bands.length);
-        result.kick = result.subBass * 0.6 + result.bass * 0.4;
-        return result;
-    }
-
-    /* ---------- 合成能量（降级备用） ---------- */
-    function getSyntheticEnergy(timeMs) {
-        const t = timeMs / 1000;
-        const e = 0.3 + Math.sin(t * 0.8) * 0.3 + Math.sin(t * 2.1) * 0.35 + Math.sin(t * 4.7) * 0.2 + Math.sin(t * 7.3 + 1.2) * 0.15;
-        return Math.min(1, Math.max(0.05, e));
-    }
-
+    /* ---------- 合成能量（驱动 VFX 用，不碰音频元素） ---------- */
     function getBassEnergy(timeMs) {
-        const audio = getAudioEnergy();
-        if (audio) return audio;
-        return getSyntheticEnergy(timeMs);
+        const t = timeMs / 1000;
+        const e = 0.3 + Math.sin(t * 0.8) * 0.3 + Math.sin(t * 2.1) * 0.35
+                 + Math.sin(t * 4.7) * 0.2 + Math.sin(t * 7.3 + 1.2) * 0.15;
+        return Math.min(1, Math.max(0.05, e));
     }
 
     /* ---------- 粒子舞台 ---------- */
@@ -6826,9 +6748,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function startEngine() {
         if (!isEngineAllowed()) return;
-        if (audioCtx && audioCtx.state === "suspended") {
-            audioCtx.resume().catch(() => {});
-        }
         document.body.classList.add("playing");
         setupParticleCanvas();
         if (!particles.length) spawnParticles();
@@ -6870,10 +6789,6 @@ document.addEventListener("DOMContentLoaded", () => {
         bindLyricsStage();
 
         if (dom.audioPlayer) {
-            // 在 loadedmetadata（加载新歌时）尽早创建音频分析图，确保播放前就绪
-            dom.audioPlayer.addEventListener("loadedmetadata", () => {
-                if (!audioCtx) ensureAudioGraph();
-            }, { once: true });
             dom.audioPlayer.addEventListener("play", startEngine);
             dom.audioPlayer.addEventListener("pause", handlePause);
             dom.audioPlayer.addEventListener("ended", handlePause);
