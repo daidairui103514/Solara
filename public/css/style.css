@@ -2754,10 +2754,10 @@ body.lyrics-stage .lyrics {
 }
 body.lyrics-stage .lyrics .lyrics-scroll {
     flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 100%;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 body.lyrics-stage .lyrics-content {
     max-width: 90vw;
