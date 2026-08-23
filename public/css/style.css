@@ -2760,8 +2760,12 @@ body.lyrics-stage .lyrics .lyrics-scroll {
     -webkit-overflow-scrolling: touch;
 }
 body.lyrics-stage .lyrics-content {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
     max-width: 90vw;
-    display: block !important;
+    margin: 0 auto;
 }
 body.lyrics-stage .lyrics.empty[data-placeholder="default"] .lyrics-scroll::before {
     font-size: 1.2rem;

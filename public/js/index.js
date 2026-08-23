@@ -3486,6 +3486,21 @@ function setupInteractions() {
     dom.audioPlayer.addEventListener("pause", updatePlayPauseButton);
     dom.audioPlayer.addEventListener("volumechange", onAudioVolumeChange);
 
+    // 逐帧歌词同步，消除 timeupdate 事件(≈250ms)带来的延迟
+    state.lyricsRafRunning = false;
+    dom.audioPlayer.addEventListener("play", () => {
+        if (state.lyricsRafRunning) return;
+        state.lyricsRafRunning = true;
+        (function lyricsRafLoop() {
+            if (!dom.audioPlayer.paused) {
+                syncLyrics();
+                requestAnimationFrame(lyricsRafLoop);
+            } else {
+                state.lyricsRafRunning = false;
+            }
+        })();
+    });
+
     dom.progressBar.addEventListener("input", handleProgressInput);
     dom.progressBar.addEventListener("change", handleProgressChange);
     dom.progressBar.addEventListener("pointerup", handleProgressChange);
