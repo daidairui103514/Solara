@@ -6586,9 +6586,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const vfxDefaults = { particles: true, cinema: true, glow: true };
     let vfxConfig = { ...vfxDefaults };
 
-    let audioCtx = null;
-    let analyser = null;
-    let freqData = null;
     let rafId = null;
     let lastBeatAt = 0;
     let frameCount = 0;
@@ -6596,6 +6593,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let particleCanvas = null;
     let particleCtx = null;
     let particles = [];
+    let audioCtx = null;
+    let analyser = null;
+    let freqData = null;
+    let hasAudio = false;
 
     const reduceMotionQuery = typeof window.matchMedia === "function"
         ? window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -6627,11 +6628,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function syncVfxSettingsUI() {
-        const map = {
-            vfxParticlesToggle: "particles",
-            vfxCinemaToggle: "cinema",
-            vfxGlowToggle: "glow"
-        };
+        const map = { vfxParticlesToggle: "particles", vfxCinemaToggle: "cinema", vfxGlowToggle: "glow" };
         Object.entries(map).forEach(([toggleId, key]) => {
             const toggle = document.getElementById(toggleId);
             if (toggle) toggle.checked = Boolean(vfxConfig[key]);
@@ -6639,11 +6636,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function bindVfxSettings() {
-        [
-            ["vfxParticlesToggle", "particles"],
-            ["vfxCinemaToggle", "cinema"],
-            ["vfxGlowToggle", "glow"]
-        ].forEach(([toggleId, key]) => {
+        [["vfxParticlesToggle", "particles"], ["vfxCinemaToggle", "cinema"], ["vfxGlowToggle", "glow"]].forEach(([toggleId, key]) => {
             const toggle = document.getElementById(toggleId);
             if (!toggle) return;
             toggle.addEventListener("change", () => {
@@ -6655,31 +6648,86 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    /* ---------- 音频分析器（Mineradio dj-analyzer 风格，8 频段） ---------- */
     function ensureAudioGraph() {
         if (audioCtx || !dom.audioPlayer) return false;
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return false;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
         try {
-            audioCtx = new AudioContextClass();
-            const sourceNode = audioCtx.createMediaElementSource(dom.audioPlayer);
+            audioCtx = new AC();
+            if (audioCtx.state === "suspended") {
+                audioCtx.resume().catch(() => {});
+            }
+            const src = audioCtx.createMediaElementSource(dom.audioPlayer);
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 256;
-            analyser.smoothingTimeConstant = 0.78;
-            sourceNode.connect(analyser);
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.82;
+            src.connect(analyser);
             analyser.connect(audioCtx.destination);
             freqData = new Uint8Array(analyser.frequencyBinCount);
+            hasAudio = true;
+            console.log("[VFX] 音频分析器已就绪");
             return true;
         } catch (e) {
-            console.warn("[VFX] 音频分析器初始化失败，VFX 降级:", e);
+            console.warn("[VFX] 音频分析器初始化失败，改用合成能量:", e);
             if (audioCtx && audioCtx.state !== "closed") {
                 try { audioCtx.close(); } catch (e) {}
             }
             audioCtx = null;
             analyser = null;
             freqData = null;
-            // 创建失败不影响正常播放
+            hasAudio = false;
             return false;
         }
+    }
+
+    function getAudioEnergy() {
+        if (!hasAudio || !analyser || !freqData) return null;
+        analyser.getByteFrequencyData(freqData);
+        const nyquist = 22050;
+        const binCount = analyser.frequencyBinCount;
+        const binWidth = nyquist / binCount;
+        const bands = [
+            { name: "subBass",   lo: 20,    hi: 60   },
+            { name: "bass",      lo: 60,    hi: 250  },
+            { name: "lowMid",    lo: 250,   hi: 500  },
+            { name: "mid",       lo: 500,   hi: 2000 },
+            { name: "highMid",   lo: 2000,  hi: 4000 },
+            { name: "presence",  lo: 4000,  hi: 6000 },
+            { name: "brilliance",lo: 6000,  hi: 16000},
+            { name: "air",       lo: 16000, hi: 22050}
+        ];
+        const result = {};
+        let total = 0;
+        for (const band of bands) {
+            let sum = 0, count = 0;
+            for (let i = 0; i < binCount; i++) {
+                const freq = (i + 0.5) * binWidth;
+                if (freq >= band.lo && freq < band.hi) {
+                    sum += freqData[i];
+                    count++;
+                }
+            }
+            const avg = count > 0 ? sum / count / 255 : 0;
+            result[band.name] = Math.min(1, avg);
+            total += avg;
+        }
+        result.energy = Math.min(1, total / bands.length);
+        result.kick = result.subBass * 0.6 + result.bass * 0.4;
+        return result;
+    }
+
+    /* ---------- 合成能量（降级备用） ---------- */
+    function getSyntheticEnergy(timeMs) {
+        const t = timeMs / 1000;
+        const e = 0.3 + Math.sin(t * 0.8) * 0.3 + Math.sin(t * 2.1) * 0.35 + Math.sin(t * 4.7) * 0.2 + Math.sin(t * 7.3 + 1.2) * 0.15;
+        return Math.min(1, Math.max(0.05, e));
+    }
+
+    function getBassEnergy(timeMs) {
+        const audio = getAudioEnergy();
+        if (audio) return audio;
+        return getSyntheticEnergy(timeMs);
     }
 
     /* ---------- 粒子舞台 ---------- */
@@ -6753,30 +6801,24 @@ document.addEventListener("DOMContentLoaded", () => {
     /* ---------- 主循环：能量分析 -> 节拍 -> 粒子/光晕 ---------- */
     function tick(timeMs) {
         rafId = requestAnimationFrame(tick);
-        if (!analyser || !freqData) return;
 
-        analyser.getByteFrequencyData(freqData);
-        let bassSum = 0;
-        const bassBins = 16;
-        for (let i = 0; i < bassBins; i += 1) bassSum += freqData[i];
-        const bassEnergy = Math.min(1, bassSum / (bassBins * 255));
+        const energy = getBassEnergy(timeMs);
+        const bassValue = typeof energy === "number" ? energy : (energy.kick || 0.3);
+        document.documentElement.style.setProperty("--audio-energy", bassValue.toFixed(3));
 
-        document.documentElement.style.setProperty("--audio-energy", bassEnergy.toFixed(3));
-
-        const now = performance.now ? performance.now() : timeMs;
         frameCount += 1;
         if (frameCount % 90 === 0) {
             document.documentElement.style.setProperty("--glow-rgb", accentRgb().join(", "));
         }
 
-        if (bassEnergy > 0.55 && now - lastBeatAt > 180) {
-            lastBeatAt = now;
+        if (bassValue > 0.55 && timeMs - lastBeatAt > 180) {
+            lastBeatAt = timeMs;
             document.body.classList.add("beat-hit");
             setTimeout(() => document.body.classList.remove("beat-hit"), 150);
         }
 
         if (vfxConfig.particles && document.body.classList.contains("playing")) {
-            drawParticles(bassEnergy, timeMs);
+            drawParticles(bassValue, timeMs);
         } else if (particleCtx) {
             particleCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
         }
@@ -6800,11 +6842,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* ---------- 全屏歌词舞台 ---------- */
     function bindLyricsStage() {
-        const btn = document.getElementById("lyricsStageBtn");
-        if (btn) {
-            btn.addEventListener("click", (event) => {
-                event.stopPropagation();
+        const lyricsEl = document.getElementById("lyrics");
+        if (lyricsEl) {
+            lyricsEl.addEventListener("dblclick", () => {
                 document.body.classList.toggle("lyrics-stage");
+            });
+            lyricsEl.addEventListener("click", (event) => {
+                const target = event.target;
+                if (target && target.closest) {
+                    const hitLink = target.closest("a");
+                    if (hitLink) return;
+                }
             });
         }
         document.addEventListener("keydown", (event) => {
@@ -6822,11 +6870,10 @@ document.addEventListener("DOMContentLoaded", () => {
         bindLyricsStage();
 
         if (dom.audioPlayer) {
-            // 在播放前尽早创建音频分析图（避免接管播放中的音频元素导致无声）
-            if (!ensureAudioGraph()) {
-                // 如果音频元素还没就绪，等 loadedmetadata 再试
-                dom.audioPlayer.addEventListener("loadedmetadata", ensureAudioGraph, { once: true });
-            }
+            // 在 loadedmetadata（加载新歌时）尽早创建音频分析图，确保播放前就绪
+            dom.audioPlayer.addEventListener("loadedmetadata", () => {
+                if (!audioCtx) ensureAudioGraph();
+            }, { once: true });
             dom.audioPlayer.addEventListener("play", startEngine);
             dom.audioPlayer.addEventListener("pause", handlePause);
             dom.audioPlayer.addEventListener("ended", handlePause);

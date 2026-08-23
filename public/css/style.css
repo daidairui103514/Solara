@@ -2713,26 +2713,6 @@ body.beat-hit.vfx-glow:not(.reduced-motion) #albumCover {
 }
 
 /* ===== C. 全屏歌词舞台 ===== */
-.lyrics-stage-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 5;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary-color);
-    cursor: pointer;
-    font-size: 0.85em;
-    opacity: 0.65;
-    transition: all 0.2s ease;
-}
-.lyrics-stage-btn:hover {
-    color: var(--primary-color);
-    background: var(--item-hover-bg);
-    opacity: 1;
 }
 body.lyrics-stage .search-area,
 body.lyrics-stage .cover-area,
@@ -2769,31 +2749,32 @@ body.lyrics-stage .lyrics {
     border-radius: 0;
     border: none;
     box-shadow: none;
+    cursor: default;
+}
+body.lyrics-stage .lyrics .lyrics-scroll {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+body.lyrics-stage .lyrics-content {
+    max-width: 90vw;
 }
 body.lyrics-stage .lyrics-content > div {
     filter: blur(2px);
     opacity: 0.3;
     margin-bottom: 18px;
+    transition: opacity 0.5s ease, filter 0.5s ease, transform 0.5s ease;
 }
 body.lyrics-stage .lyrics-content > div.current,
 body.lyrics-stage .lyrics .current {
     transform: scale(1.08);
     filter: blur(0);
+    opacity: 1;
+    color: var(--lyrics-highlight-text);
     text-shadow:
         0 0 26px var(--lyrics-highlight-shadow),
         0 4px 44px var(--lyrics-highlight-shadow);
-}
-body.lyrics-stage .lyrics-stage-btn {
-    top: 28px;
-    right: 36px;
-    color: rgba(255, 255, 255, 0.85);
-    width: 46px;
-    height: 46px;
-    font-size: 1.15em;
-    background: rgba(255, 255, 255, 0.12);
-}
-body.lyrics-stage .lyrics-stage-btn i::before {
-    content: "\f066"; /* fa-compress */
 }
 
 /* ===== 设置面板：效果开关 ===== */
@@ -2844,4 +2825,26 @@ body.lyrics-stage .lyrics-stage-btn i::before {
     body.vfx-cinema .background-stage__layer--base {
         animation: none !important;
     }
+}
+
+/* ===== 全屏歌词舞台：双击提示 ===== */
+.lyrics:not(.empty)::after {
+    content: "\f065 双击进入全屏";
+    font-family: "Font Awesome 6 Free", "Noto Sans SC", sans-serif;
+    font-weight: 900;
+    position: absolute;
+    bottom: 16px;
+    right: 20px;
+    font-size: 0.75em;
+    opacity: 0;
+    color: var(--text-secondary-color);
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+    z-index: 2;
+}
+.lyrics:not(.empty):hover::after {
+    opacity: 0.65;
+}
+body.lyrics-stage .lyrics:not(.empty)::after {
+    display: none;
 }
