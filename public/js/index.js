@@ -6579,3 +6579,276 @@ document.addEventListener("DOMContentLoaded", () => {
         initSettings();
     }
 });
+
+/* ===== 视觉效果引擎（Mineradio 风格：粒子舞台 / 镜头律动 / 封面光晕 / 全屏歌词） ===== */
+(function () {
+    const VFX_KEY = "visualEffects";
+    const vfxDefaults = { particles: true, cinema: true, glow: true };
+    let vfxConfig = { ...vfxDefaults };
+
+    let audioCtx = null;
+    let analyser = null;
+    let freqData = null;
+    let rafId = null;
+    let lastBeatAt = 0;
+    let frameCount = 0;
+
+    let particleCanvas = null;
+    let particleCtx = null;
+    let particles = [];
+
+    const reduceMotionQuery = typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : { matches: false };
+
+    function isEngineAllowed() {
+        return !window.__SOLARA_IS_MOBILE && !reduceMotionQuery.matches;
+    }
+
+    function loadVfxConfig() {
+        try {
+            const raw = safeGetLocalStorage(VFX_KEY);
+            if (raw) {
+                vfxConfig = { ...vfxDefaults, ...JSON.parse(raw) };
+            }
+        } catch (e) { /* 忽略损坏的本地数据 */ }
+        applyVfxConfig();
+    }
+
+    function persistVfxConfig() {
+        safeSetLocalStorage(VFX_KEY, JSON.stringify(vfxConfig), { skipRemote: true });
+    }
+
+    function applyVfxConfig() {
+        document.body.classList.toggle("vfx-particles", Boolean(vfxConfig.particles));
+        document.body.classList.toggle("vfx-cinema", Boolean(vfxConfig.cinema));
+        document.body.classList.toggle("vfx-glow", Boolean(vfxConfig.glow));
+        document.body.classList.toggle("reduced-motion", Boolean(reduceMotionQuery.matches));
+    }
+
+    function syncVfxSettingsUI() {
+        const map = {
+            vfxParticlesToggle: "particles",
+            vfxCinemaToggle: "cinema",
+            vfxGlowToggle: "glow"
+        };
+        Object.entries(map).forEach(([toggleId, key]) => {
+            const toggle = document.getElementById(toggleId);
+            if (toggle) toggle.checked = Boolean(vfxConfig[key]);
+        });
+    }
+
+    function bindVfxSettings() {
+        [
+            ["vfxParticlesToggle", "particles"],
+            ["vfxCinemaToggle", "cinema"],
+            ["vfxGlowToggle", "glow"]
+        ].forEach(([toggleId, key]) => {
+            const toggle = document.getElementById(toggleId);
+            if (!toggle) return;
+            toggle.addEventListener("change", () => {
+                vfxConfig[key] = toggle.checked;
+                applyVfxConfig();
+                persistVfxConfig();
+                if (key === "particles" && !toggle.checked) clearParticles();
+            });
+        });
+    }
+
+    function ensureAudioGraph() {
+        if (audioCtx || !dom.audioPlayer) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        try {
+            audioCtx = new AudioContextClass();
+            const sourceNode = audioCtx.createMediaElementSource(dom.audioPlayer);
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.78;
+            sourceNode.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            freqData = new Uint8Array(analyser.frequencyBinCount);
+        } catch (e) {
+            console.warn("[VFX] 音频分析器初始化失败:", e);
+        }
+    }
+
+    /* ---------- 粒子舞台 ---------- */
+    function setupParticleCanvas() {
+        if (!particleCanvas) {
+            particleCanvas = document.getElementById("beatParticles");
+            particleCtx = particleCanvas ? particleCanvas.getContext("2d") : null;
+        }
+        if (!particleCtx) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        particleCanvas.width = Math.round(window.innerWidth * dpr);
+        particleCanvas.height = Math.round(window.innerHeight * dpr);
+        particleCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function accentRgb() {
+        const raw = getComputedStyle(document.documentElement)
+            .getPropertyValue("--primary-color").trim();
+        const match = raw.match(/^#?([0-9a-f]{6})$/i);
+        if (!match) return [26, 188, 156];
+        const hex = match[1];
+        return [
+            parseInt(hex.slice(0, 2), 16),
+            parseInt(hex.slice(2, 4), 16),
+            parseInt(hex.slice(4, 6), 16)
+        ];
+    }
+
+    function spawnParticles() {
+        const count = Math.round(Math.min(window.innerWidth, 1600) / 22);
+        particles = Array.from({ length: count }, () => ({
+            x: Math.random(),
+            y: Math.random(),
+            vx: (Math.random() - 0.5) * 0.0006,
+            vy: -0.0003 - Math.random() * 0.0007,
+            radius: 1 + Math.random() * 2.4,
+            phase: Math.random() * Math.PI * 2,
+            alpha: 0.18 + Math.random() * 0.35
+        }));
+    }
+
+    function clearParticles() {
+        particles = [];
+        if (particleCtx && particleCanvas) {
+            particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+        }
+    }
+
+    function drawParticles(bassEnergy, timeMs) {
+        if (!particleCtx || !particles.length) return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const rgb = accentRgb();
+        particleCtx.clearRect(0, 0, w, h);
+
+        for (const p of particles) {
+            p.x += p.vx * (1 + bassEnergy * 5);
+            p.y += p.vy * (1 + bassEnergy * 3);
+            if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
+            if (p.x < -0.05 || p.x > 1.05) { p.vx *= -1; p.x = Math.min(1.05, Math.max(-0.05, p.x)); }
+
+            const twinkle = 0.72 + 0.28 * Math.sin(timeMs / 700 + p.phase);
+            const radius = p.radius * (1 + bassEnergy * 1.6);
+            particleCtx.beginPath();
+            particleCtx.arc(p.x * w, p.y * h, radius, 0, Math.PI * 2);
+            particleCtx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${p.alpha * twinkle})`;
+            particleCtx.fill();
+        }
+    }
+
+    /* ---------- 主循环：能量分析 -> 节拍 -> 粒子/光晕 ---------- */
+    function tick(timeMs) {
+        rafId = requestAnimationFrame(tick);
+        if (!analyser || !freqData) return;
+
+        analyser.getByteFrequencyData(freqData);
+        let bassSum = 0;
+        const bassBins = 16;
+        for (let i = 0; i < bassBins; i += 1) bassSum += freqData[i];
+        const bassEnergy = Math.min(1, bassSum / (bassBins * 255));
+
+        document.documentElement.style.setProperty("--audio-energy", bassEnergy.toFixed(3));
+
+        const now = performance.now ? performance.now() : timeMs;
+        frameCount += 1;
+        if (frameCount % 90 === 0) {
+            document.documentElement.style.setProperty("--glow-rgb", accentRgb().join(", "));
+        }
+
+        if (bassEnergy > 0.55 && now - lastBeatAt > 180) {
+            lastBeatAt = now;
+            document.body.classList.add("beat-hit");
+            setTimeout(() => document.body.classList.remove("beat-hit"), 150);
+        }
+
+        if (vfxConfig.particles && document.body.classList.contains("playing")) {
+            drawParticles(bassEnergy, timeMs);
+        } else if (particleCtx) {
+            particleCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        }
+    }
+
+    function startEngine() {
+        if (!isEngineAllowed()) return;
+        ensureAudioGraph();
+        if (audioCtx && audioCtx.state === "suspended") {
+            audioCtx.resume().catch(() => {});
+        }
+        document.body.classList.add("playing");
+        setupParticleCanvas();
+        if (!particles.length) spawnParticles();
+        if (!rafId) rafId = requestAnimationFrame(tick);
+    }
+
+    function handlePause() {
+        document.body.classList.remove("playing");
+        document.documentElement.style.setProperty("--audio-energy", "0");
+    }
+
+    /* ---------- 全屏歌词舞台 ---------- */
+    function bindLyricsStage() {
+        const btn = document.getElementById("lyricsStageBtn");
+        if (btn) {
+            btn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                document.body.classList.toggle("lyrics-stage");
+            });
+        }
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                document.body.classList.remove("lyrics-stage");
+            }
+        });
+    }
+
+    /* ---------- 启动 ---------- */
+    function bootstrapVisualFx() {
+        loadVfxConfig();
+        bindVfxSettings();
+        syncVfxSettingsUI();
+        bindLyricsStage();
+
+        if (dom.audioPlayer) {
+            dom.audioPlayer.addEventListener("play", startEngine);
+            dom.audioPlayer.addEventListener("pause", handlePause);
+            dom.audioPlayer.addEventListener("ended", handlePause);
+        }
+        window.addEventListener("resize", () => {
+            setupParticleCanvas();
+            spawnParticles();
+        });
+
+        // 调试接口：无音频时模拟节奏用于预览（window.__solaraVfxTest()）
+        window.__solaraVfxTest = function () {
+            document.body.classList.add("playing");
+            setupParticleCanvas();
+            spawnParticles();
+            if (!rafId) {
+                const fakeTick = (timeMs) => {
+                    rafId = requestAnimationFrame(fakeTick);
+                    const syntheticBass = (Math.sin(timeMs / 320) + 1) / 2 * 0.75;
+                    document.documentElement.style.setProperty("--audio-energy", syntheticBass.toFixed(3));
+                    const now = Date.now();
+                    if (syntheticBass > 0.62 && now - lastBeatAt > 200) {
+                        lastBeatAt = now;
+                        document.body.classList.add("beat-hit");
+                        setTimeout(() => document.body.classList.remove("beat-hit"), 140);
+                    }
+                    if (vfxConfig.particles) drawParticles(syntheticBass, timeMs);
+                };
+                rafId = requestAnimationFrame(fakeTick);
+            }
+        };
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", bootstrapVisualFx, { once: true });
+    } else {
+        bootstrapVisualFx();
+    }
+})();

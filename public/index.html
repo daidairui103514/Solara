@@ -105,6 +105,7 @@
     <div class="background-stage" id="backgroundStage" aria-hidden="true">
         <div class="background-stage__layer background-stage__layer--base" id="backgroundBaseLayer"></div>
         <div class="background-stage__layer background-stage__layer--transition" id="backgroundTransitionLayer"></div>
+        <canvas id="beatParticles" class="beat-particles" aria-hidden="true"></canvas>
     </div>
     <div class="container" id="mainContainer">
         <div class="mobile-toolbar" id="mobileToolbar" role="toolbar">
@@ -458,6 +459,9 @@
                     </div>
                 </div>
                 <div class="lyrics empty" id="lyrics" data-placeholder="default">
+                    <button id="lyricsStageBtn" class="lyrics-stage-btn" type="button" title="全屏歌词舞台（Esc 退出）" aria-label="进入全屏歌词舞台">
+                        <i class="fas fa-expand" aria-hidden="true"></i>
+                    </button>
                     <div class="lyrics-scroll" id="lyricsScroll">
                         <div class="lyrics-content" id="lyricsContent"></div>
                     </div>
@@ -531,6 +535,22 @@
                     <button type="button" class="layout-option" data-layout="cover-lyrics">封面 + 歌词</button>
                     <button type="button" class="layout-option" data-layout="cover-only">仅封面</button>
                     <button type="button" class="layout-option" data-layout="lyrics-only">仅歌词</button>
+                </div>
+            </section>
+            <section class="settings-section">
+                <h3>视觉效果</h3>
+                <p class="settings-hint">播放音乐时的动态视觉增强，立即生效。</p>
+                <div class="settings-field">
+                    <label for="vfxParticlesToggle">粒子舞台<span class="settings-field-desc">背景粒子随节奏律动</span></label>
+                    <input type="checkbox" id="vfxParticlesToggle" class="settings-toggle" checked>
+                </div>
+                <div class="settings-field">
+                    <label for="vfxCinemaToggle">镜头律动<span class="settings-field-desc">背景随节拍缓慢推拉</span></label>
+                    <input type="checkbox" id="vfxCinemaToggle" class="settings-toggle" checked>
+                </div>
+                <div class="settings-field">
+                    <label for="vfxGlowToggle">封面光晕<span class="settings-field-desc">专辑封面随音量呼吸发光</span></label>
+                    <input type="checkbox" id="vfxGlowToggle" class="settings-toggle" checked>
                 </div>
             </section>
             <section class="settings-section">
