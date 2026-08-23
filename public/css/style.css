@@ -2756,16 +2756,13 @@ body.lyrics-stage .lyrics .lyrics-scroll {
     flex: 1;
     width: 100%;
     overflow-y: auto;
-    scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
 }
 body.lyrics-stage .lyrics-content {
-    display: flex !important;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 100%;
+    display: block !important;
     max-width: 90vw;
     margin: 0 auto;
+    padding: 38vh 0;
 }
 body.lyrics-stage .lyrics.empty[data-placeholder="default"] .lyrics-scroll::before {
     font-size: 1.2rem;
