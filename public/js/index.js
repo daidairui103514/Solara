@@ -6598,7 +6598,7 @@ document.addEventListener("DOMContentLoaded", () => {
 /* ===== 视觉效果引擎（Mineradio 风格：粒子舞台 / 镜头律动 / 封面光晕 / 全屏歌词） ===== */
 (function () {
     const VFX_KEY = "visualEffects";
-    const vfxDefaults = { particles: true, cinema: true, glow: true };
+    const vfxDefaults = { particles: true, cinema: true, glow: true, density: 90 };
     let vfxConfig = { ...vfxDefaults };
 
     let rafId = null;
@@ -6644,6 +6644,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const toggle = document.getElementById(toggleId);
             if (toggle) toggle.checked = Boolean(vfxConfig[key]);
         });
+        const densityRange = document.getElementById("vfxDensityRange");
+        const densityValue = document.getElementById("vfxDensityValue");
+        if (densityRange) densityRange.value = String(Number(vfxConfig.density) || 90);
+        if (densityValue) densityValue.textContent = String(Number(vfxConfig.density) || 90);
     }
 
     function bindVfxSettings() {
@@ -6657,6 +6661,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (key === "particles" && !toggle.checked) clearParticles();
             });
         });
+        const densityRange = document.getElementById("vfxDensityRange");
+        const densityValue = document.getElementById("vfxDensityValue");
+        if (densityRange && densityValue) {
+            densityRange.addEventListener("input", () => {
+                const value = parseInt(densityRange.value, 10) || 90;
+                vfxConfig.density = value;
+                densityValue.textContent = String(value);
+                persistVfxConfig();
+                if (vfxConfig.particles) spawnParticles();
+            });
+        }
     }
 
     /* ---------- 合成能量（驱动 VFX 用，不碰音频元素） ---------- */
@@ -6694,8 +6709,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function spawnParticles() {
-        const count = Math.round(Math.min(window.innerWidth, 1600) / 22);
-        particles = Array.from({ length: count }, () => ({
+        const density = Math.min(200, Math.max(20, Number(vfxConfig.density) || 90));
+        const baseCount = Math.round(Math.min(window.innerWidth, 1600) / 22);
+        const target = Math.round(baseCount * (density / 90));
+        if (particles.length === target) return;
+
+        particles = Array.from({ length: target }, () => ({
             x: Math.random(),
             y: Math.random(),
             vx: (Math.random() - 0.5) * 0.0006,
@@ -6772,17 +6791,17 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!rafId) rafId = requestAnimationFrame(tick);
     }
 
-    function ensureParticlesRunning() {
-        // 打开页面即启动常驻粒子背景，不依赖播放状态
-        if (!isEngineAllowed()) return;
-        setupParticleCanvas();
-        if (!particles.length) spawnParticles();
-        if (!rafId) rafId = requestAnimationFrame(tick);
-    }
-
     function handlePause() {
         document.body.classList.remove("playing");
         document.documentElement.style.setProperty("--audio-energy", "0");
+        // 停止粒子绘制并清空画布
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+        if (particleCtx) {
+            particleCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        }
     }
 
     /* ---------- 全屏歌词舞台 ---------- */
@@ -6813,9 +6832,6 @@ document.addEventListener("DOMContentLoaded", () => {
         bindVfxSettings();
         syncVfxSettingsUI();
         bindLyricsStage();
-
-        // 常驻粒子背景：页面一打开就启动
-        ensureParticlesRunning();
 
         if (dom.audioPlayer) {
             dom.audioPlayer.addEventListener("play", startEngine);
