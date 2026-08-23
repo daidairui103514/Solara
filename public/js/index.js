@@ -6614,7 +6614,7 @@ document.addEventListener("DOMContentLoaded", () => {
         : { matches: false };
 
     function isEngineAllowed() {
-        return !window.__SOLARA_IS_MOBILE && !reduceMotionQuery.matches;
+        return !window.__SOLARA_IS_MOBILE;
     }
 
     function loadVfxConfig() {
@@ -6713,7 +6713,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function drawParticles(bassEnergy, timeMs) {
+    function drawParticles(bassEnergy, timeMs, accelerated = true) {
         if (!particleCtx || !particles.length) return;
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -6721,8 +6721,9 @@ document.addEventListener("DOMContentLoaded", () => {
         particleCtx.clearRect(0, 0, w, h);
 
         for (const p of particles) {
-            p.x += p.vx * (1 + bassEnergy * 5);
-            p.y += p.vy * (1 + bassEnergy * 3);
+            const boost = accelerated ? 1 : 0;
+            p.x += p.vx * (1 + bassEnergy * 5 + boost);
+            p.y += p.vy * (1 + bassEnergy * 3 + boost * 0.6);
             if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
             if (p.x < -0.05 || p.x > 1.05) { p.vx *= -1; p.x = Math.min(1.05, Math.max(-0.05, p.x)); }
 
@@ -6754,8 +6755,10 @@ document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => document.body.classList.remove("beat-hit"), 150);
         }
 
-        if (vfxConfig.particles && document.body.classList.contains("playing")) {
-            drawParticles(bassValue, timeMs);
+        const isPlaying = document.body.classList.contains("playing");
+        if (vfxConfig.particles) {
+            // 常驻环境粒子：播放时随能量律动，未播放时缓慢漂移
+            drawParticles(isPlaying ? bassValue : 0.18, timeMs, isPlaying);
         } else if (particleCtx) {
             particleCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
         }
@@ -6764,6 +6767,14 @@ document.addEventListener("DOMContentLoaded", () => {
     function startEngine() {
         if (!isEngineAllowed()) return;
         document.body.classList.add("playing");
+        setupParticleCanvas();
+        if (!particles.length) spawnParticles();
+        if (!rafId) rafId = requestAnimationFrame(tick);
+    }
+
+    function ensureParticlesRunning() {
+        // 打开页面即启动常驻粒子背景，不依赖播放状态
+        if (!isEngineAllowed()) return;
         setupParticleCanvas();
         if (!particles.length) spawnParticles();
         if (!rafId) rafId = requestAnimationFrame(tick);
@@ -6803,6 +6814,9 @@ document.addEventListener("DOMContentLoaded", () => {
         syncVfxSettingsUI();
         bindLyricsStage();
 
+        // 常驻粒子背景：页面一打开就启动
+        ensureParticlesRunning();
+
         if (dom.audioPlayer) {
             dom.audioPlayer.addEventListener("play", startEngine);
             dom.audioPlayer.addEventListener("pause", handlePause);
@@ -6829,7 +6843,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         document.body.classList.add("beat-hit");
                         setTimeout(() => document.body.classList.remove("beat-hit"), 140);
                     }
-                    if (vfxConfig.particles) drawParticles(syntheticBass, timeMs);
+                    if (vfxConfig.particles) drawParticles(syntheticBass, timeMs, true);
                 };
                 rafId = requestAnimationFrame(fakeTick);
             }

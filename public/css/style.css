@@ -2682,7 +2682,7 @@ body.dark-mode .settings-select {
     transition: opacity 1.2s ease;
     pointer-events: none;
 }
-body.playing.vfx-particles:not(.reduced-motion) .beat-particles {
+body.vfx-particles .beat-particles {
     opacity: 0.85;
 }
 
