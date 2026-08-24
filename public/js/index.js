@@ -6805,23 +6805,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /* ---------- 全屏歌词舞台 ---------- */
+    function exitLyricsStage() {
+        document.body.classList.remove("lyrics-stage");
+        // 退出全屏后立即滚动到当前歌词行
+        requestAnimationFrame(() => {
+            const current = document.querySelector(".lyrics-content .current");
+            if (current && dom.lyricsScroll) {
+                scrollToCurrentLyric(current, dom.lyricsScroll);
+            }
+        });
+    }
+
+    function enterLyricsStage() {
+        document.body.classList.add("lyrics-stage");
+    }
+
     function bindLyricsStage() {
         const lyricsEl = document.getElementById("lyrics");
         if (lyricsEl) {
             lyricsEl.addEventListener("dblclick", () => {
-                document.body.classList.toggle("lyrics-stage");
-            });
-            lyricsEl.addEventListener("click", (event) => {
-                const target = event.target;
-                if (target && target.closest) {
-                    const hitLink = target.closest("a");
-                    if (hitLink) return;
+                if (document.body.classList.contains("lyrics-stage")) {
+                    exitLyricsStage();
+                } else {
+                    enterLyricsStage();
                 }
             });
         }
         document.addEventListener("keydown", (event) => {
             if (event.key === "Escape") {
-                document.body.classList.remove("lyrics-stage");
+                exitLyricsStage();
             }
         });
     }
